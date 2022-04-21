@@ -24,8 +24,16 @@ load:
 unload:
 	sudo rmmod $(TARGET_MODULE) || true >/dev/null
 
+replace:
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
+	sudo rmmod $(TARGET_MODULE) || true >/dev/null
+	sudo insmod $(TARGET_MODULE).ko
+
 client: client.c
 	$(CC) -o $@ $^
+
+gnuplot:
+	gnuplot gnuplot_srcipt.gp out
 
 PRINTF = env printf
 PASS_COLOR = \e[32;01m
@@ -35,7 +43,7 @@ pass = $(PRINTF) "$(PASS_COLOR)$1 Passed [-]$(NO_COLOR)\n"
 check: all
 	$(MAKE) unload
 	$(MAKE) load
-	sudo ./client > out
+	sudo taskset 0x1 ./client > out
 	$(MAKE) unload
-	@diff -u out scripts/expected.txt && $(call pass)
-	@scripts/verify.py
+	scripts/verify.py
+	make gnuplot

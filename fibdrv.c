@@ -17,12 +17,14 @@ MODULE_VERSION("0.1");
 /* MAX_LENGTH is set to 92 because
  * ssize_t can't fit the number > 92
  */
-#define MAX_LENGTH 92
+#define MAX_LENGTH 1000
 
 static dev_t fib_dev = 0;
 static struct cdev *fib_cdev;
 static struct class *fib_class;
 static DEFINE_MUTEX(fib_mutex);
+
+static ktime_t kt;
 
 static long long fib_sequence(long long k)
 {
@@ -38,6 +40,80 @@ static long long fib_sequence(long long k)
 
     return f[k];
 }
+
+
+static __uint128_t fib_sequence_128_bit(long long k, __uint128_t *buf)
+{
+    __uint128_t f[3];
+
+    f[0] = 0;
+    f[1] = 1;
+
+    for (int i = 2; i <= k; i++)
+        f[i % 3] = f[(i - 1) % 3] + f[(i - 2) % 3];
+
+    copy_to_user(buf, &f[k % 3], sizeof(__uint128_t));
+
+    return k;
+}
+
+typedef struct BigN {
+    unsigned long long lower, upper;
+} BigN;
+
+static inline void addBigN(struct BigN *output, struct BigN x, struct BigN y)
+{
+    output->upper = x.upper + y.upper;
+    if (y.lower > ~x.lower)
+        output->upper++;
+    output->lower = x.lower + y.lower;
+}
+
+static long long fib_sequence_big_number(long long k, BigN *buf)
+{
+    BigN f[3];
+
+    f[0].lower = f[0].upper = 0;
+
+    f[1].lower = 1;
+    f[1].upper = 0;
+
+    for (int i = 2; i <= k; i++) {
+        addBigN(&f[i % 3], f[(i - 1) % 3], f[(i - 2) % 3]);
+    }
+    copy_to_user(buf, &f[k % 3], sizeof(BigN));
+
+    return k;
+}
+
+
+static long fib_time_proxy(long long k, char *buf)
+{
+    kt = ktime_get();
+    long result = fib_sequence_128_bit(k, (__uint128_t *) buf);
+    // long result = fib_sequence_big_number(k, (BigN *)buf);
+    kt = ktime_sub(ktime_get(), kt);
+
+    return result;
+}
+
+static ssize_t fib_read(struct file *file,
+                        char *buf,
+                        size_t size,
+                        loff_t *offset)
+{
+    return (ssize_t) fib_time_proxy(*offset, buf);
+}
+
+static ssize_t fib_write(struct file *file,
+                         const char *buf,
+                         size_t size,
+                         loff_t *offset)
+{
+    return ktime_to_ns(kt);
+}
+
+
 
 static int fib_open(struct inode *inode, struct file *file)
 {
@@ -55,22 +131,22 @@ static int fib_release(struct inode *inode, struct file *file)
 }
 
 /* calculate the fibonacci number at given offset */
-static ssize_t fib_read(struct file *file,
-                        char *buf,
-                        size_t size,
-                        loff_t *offset)
-{
-    return (ssize_t) fib_sequence(*offset);
-}
+// static ssize_t fib_read(struct file *file,
+//                         char *buf,
+//                         size_t size,
+//                         loff_t *offset)
+// {
+//     return (ssize_t) fib_sequence(*offset);
+// }
 
 /* write operation is skipped */
-static ssize_t fib_write(struct file *file,
-                         const char *buf,
-                         size_t size,
-                         loff_t *offset)
-{
-    return 1;
-}
+// static ssize_t fib_write(struct file *file,
+//                          const char *buf,
+//                          size_t size,
+//                          loff_t *offset)
+// {
+//     return 1;
+// }
 
 static loff_t fib_device_lseek(struct file *file, loff_t offset, int orig)
 {
