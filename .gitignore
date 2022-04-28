@@ -28,4 +28,7 @@ dkms.conf
 
 # test-oriented
 client
-out
+out*
+test*
+*.png
+.vscode/

@@ -87,13 +87,19 @@ int bn_to_string(BigN *bn, char *buf, size_t buf_size)
     return digits;
 }
 
+typedef struct _str_num {
+    char *str;
+    int len;
+    int digits;
+} str_num;
+
 int main()
 {
     long long sz;
 
     char buf[1024];
     char write_buf[1024], read_buf[1024];
-    int offset = 200; /* TODO: try test something bigger than the limit */
+    int offset = 500; /* TODO: try test something bigger than the limit */
 
     int fd = open(FIB_DEV, O_RDWR);
     if (fd < 0) {
@@ -107,16 +113,20 @@ int main()
     }
 
     for (int i = 0; i <= offset; i++) {
+        memset(read_buf, 0, sizeof(read_buf));
+
         lseek(fd, i, SEEK_SET);
         sz = read(fd, read_buf, 1024);
 
-        __uint128_t *t = (__uint128_t *) read_buf;
-        int ret = uint128_to_string(*t, buf, sizeof(buf));
+        // __uint128_t *t = (__uint128_t *) read_buf;
+        // int ret = uint128_to_string(*t, buf, sizeof(buf));
 
         // BigN *bign = (BigN *)read_buf;
         // int ret = bn_to_string(bign, buf, sizeof(buf));
 
-        printf("%d %s\n", i, buf);
+        // printf("%d %s\n", i, buf);
+
+        printf("%d %s\n", i, read_buf);
 
         // printf("Reading from " FIB_DEV
         //        " at offset %d, returned the sequence "
@@ -124,7 +134,7 @@ int main()
         //        i, sz);
 
         sz = write(fd, write_buf, strlen(write_buf));
-        // printf("offset %d latency %lld\n", i, sz);
+        // printf("%d %lld\n", i, sz);
         usleep(10);
     }
 
