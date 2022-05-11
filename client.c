@@ -97,9 +97,9 @@ int main()
 {
     long long sz;
 
-    char buf[1024];
-    char write_buf[1024], read_buf[1024];
-    int offset = 500; /* TODO: try test something bigger than the limit */
+    char write_buf[4096], read_buf[40960];
+    int start = 50000,
+        offset = 50005; /* TODO: try test something bigger than the limit */
 
     int fd = open(FIB_DEV, O_RDWR);
     if (fd < 0) {
@@ -107,16 +107,17 @@ int main()
         exit(1);
     }
 
-    for (int i = 0; i <= offset; i++) {
-        sz = write(fd, write_buf, strlen(write_buf));
-        // printf("Writing to " FIB_DEV ", returned the sequence %lld\n", sz);
-    }
+    // for (int i = start; i <= offset; i++) {
+    //     sz = write(fd, write_buf, strlen(write_buf));
+    //     // printf("Writing to " FIB_DEV ", returned the sequence %lld\n",
+    //     sz);
+    // }
 
-    for (int i = 0; i <= offset; i++) {
+    for (int i = start; i <= offset; i++) {
         memset(read_buf, 0, sizeof(read_buf));
 
         lseek(fd, i, SEEK_SET);
-        sz = read(fd, read_buf, 1024);
+        sz = read(fd, read_buf, sizeof(read_buf));
 
         // __uint128_t *t = (__uint128_t *) read_buf;
         // int ret = uint128_to_string(*t, buf, sizeof(buf));
@@ -133,7 +134,7 @@ int main()
         //        "%llu.\n",
         //        i, sz);
 
-        sz = write(fd, write_buf, strlen(write_buf));
+        // sz = write(fd, write_buf, strlen(write_buf));
         // printf("%d %lld\n", i, sz);
         usleep(10);
     }

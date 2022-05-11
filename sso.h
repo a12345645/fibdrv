@@ -14,7 +14,7 @@
 #define uint unsigned int
 #define uint8_t unsigned char
 
-#define SSO_CAP sizeof(SSO) - 1
+#define SSO_CAP sizeof(SSO)
 #define MSB 0x80000000
 
 typedef union {
@@ -28,7 +28,7 @@ typedef union {
     };
 } SSO;
 
-void sso_init(SSO *str, ulong n)
+int sso_init(SSO *str, ulong n)
 {
     uint size = n == 0, i;
     ulong tmp = n;
@@ -47,6 +47,8 @@ void sso_init(SSO *str, ulong n)
     } else {
         int capacity = size + (size % 8);
         char *ptr = kcalloc(capacity, sizeof(char), GFP_KERNEL);
+        if (ptr == NULL)
+            return 0;
 
         for (i = 0; i < size; i++) {
             ptr[i] = n % 10;
@@ -59,6 +61,7 @@ void sso_init(SSO *str, ulong n)
         str->size = size;
         str->size_msb = !(size & MSB);
     }
+    return 1;
 }
 
 void get_sso_content(SSO *n, char **data, int *size, int *capacity)
@@ -88,12 +91,14 @@ void sso_set_size(SSO *n, int s)
     n->size = s;
     n->size_msb = !(s & MSB);
 }
-void sso_realloc(SSO *n, int c)
+int sso_realloc(SSO *n, int c)
 {
     if (c < SSO_CAP)
-        return;
+        return c;
     if (n->capacity_msb == 0 && n->size_msb == 0) {
         n->ptr = kcalloc(c, sizeof(char), GFP_KERNEL);
+        if (n->ptr == NULL)
+            return 0;
 
         n->capacity = c;
         n->capacity_msb = (c & MSB) > 0;
@@ -101,10 +106,13 @@ void sso_realloc(SSO *n, int c)
         n->size_msb = 1;
     }
     n->ptr = krealloc(n->ptr, c, GFP_KERNEL);
+    if (n->ptr == NULL)
+        return 0;
     n->capacity = c;
     n->capacity_msb = (c & MSB) > 0;
+    return c;
 }
-void sso_add(SSO *output, SSO *x, SSO *y)
+int sso_add(SSO *output, SSO *x, SSO *y)
 {
     char *ans, *xn, *yn;
     int ans_size, xn_size, yn_size, ans_cap, xn_cap, yn_cap;
@@ -114,7 +122,8 @@ void sso_add(SSO *output, SSO *x, SSO *y)
     get_sso_content(y, &yn, &yn_size, &yn_cap);
 
     if (ans_cap < (xn_size + 2) || ans_cap < (yn_size + 2)) {
-        sso_realloc(output, ans_cap + 8);
+        if (sso_realloc(output, ans_cap + ans_cap % 8 + 8) == 0)
+            return 0;
         get_sso_content(output, &ans, &ans_size, &ans_cap);
     }
 
@@ -131,6 +140,8 @@ void sso_add(SSO *output, SSO *x, SSO *y)
         ans[j++] = carry;
 
     sso_set_size(output, j);
+
+    return j;
 }
 
 void sso_free(SSO *n)
@@ -140,6 +151,8 @@ void sso_free(SSO *n)
     kfree(n->ptr);
 }
 
+#ifndef _reverse_str_
+#define _reverse_str_
 void reverse_str(char *str, size_t n)
 {
     for (int i = 0; i < (n >> 1); i++) {
@@ -147,4 +160,48 @@ void reverse_str(char *str, size_t n)
         str[n - i - 1] = str[i];
         str[i] = tmp;
     }
+}
+#endif
+
+static long long fib_sequence_sso(long long k, char *buf, size_t buf_len)
+{
+    SSO f[3];
+    int ret;
+    ret = sso_init(&f[0], 0);
+    if (ret == 0)
+        return 0;
+    ret = sso_init(&f[1], 1);
+    if (ret == 0)
+        return 0;
+    ret = sso_init(&f[2], 0);
+    if (ret == 0)
+        return 0;
+
+    for (int i = 2; i <= k; i++) {
+        ret = sso_add(&f[i % 3], &f[(i - 1) % 3], &f[(i - 2) % 3]);
+        if (ret == 0)
+            return 0;
+    }
+
+    SSO *ans = &f[k % 3];
+    char *data;
+    int size, cap;
+
+    get_sso_content(ans, &data, &size, &cap);
+
+    for (int i = 0; i < size; i++)
+        data[i] += '0';
+
+    if (size > buf_len)
+        goto sso_err;
+
+    reverse_str(data, size);
+
+    ret = copy_to_user(buf, data, size);
+
+sso_err:
+    for (int i = 0; i < 3; i++)
+        sso_free(&f[i]);
+
+    return k;
 }

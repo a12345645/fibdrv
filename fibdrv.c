@@ -9,7 +9,10 @@
 
 #include <linux/slab.h>
 
+#include "bn.h"
+#include "num_128.h"
 #include "sso.h"
+#include "str_num.h"
 
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_AUTHOR("National Cheng Kung University, Taiwan");
@@ -21,7 +24,7 @@ MODULE_VERSION("0.1");
 /* MAX_LENGTH is set to 92 because
  * ssize_t can't fit the number > 92
  */
-#define MAX_LENGTH 1000
+#define MAX_LENGTH 1000000
 
 static dev_t fib_dev = 0;
 static struct cdev *fib_cdev;
@@ -30,173 +33,29 @@ static DEFINE_MUTEX(fib_mutex);
 
 static ktime_t kt;
 
-static long long fib_sequence(long long k)
-{
-    /* FIXME: C99 variable-length array (VLA) is not allowed in Linux kernel. */
-    long long f[k + 2];
+// static long long fib_sequence(long long k)
+// {
+//     /* FIXME: C99 variable-length array (VLA) is not allowed in Linux kernel.
+//     */ long long f[k + 2];
 
-    f[0] = 0;
-    f[1] = 1;
+//     f[0] = 0;
+//     f[1] = 1;
 
-    for (int i = 2; i <= k; i++) {
-        f[i] = f[i - 1] + f[i - 2];
-    }
+//     for (int i = 2; i <= k; i++) {
+//         f[i] = f[i - 1] + f[i - 2];
+//     }
 
-    return f[k];
-}
+//     return f[k];
+// }
 
-
-static __uint128_t fib_sequence_128_bit(long long k, __uint128_t *buf)
-{
-    __uint128_t f[3];
-
-    f[0] = 0;
-    f[1] = 1;
-
-    for (int i = 2; i <= k; i++)
-        f[i % 3] = f[(i - 1) % 3] + f[(i - 2) % 3];
-
-    copy_to_user(buf, &f[k % 3], sizeof(__uint128_t));
-
-    return k;
-}
-
-typedef struct BigN {
-    unsigned long long lower, upper;
-} BigN;
-
-static inline void addBigN(struct BigN *output, struct BigN x, struct BigN y)
-{
-    output->upper = x.upper + y.upper;
-    if (y.lower > ~x.lower)
-        output->upper++;
-    output->lower = x.lower + y.lower;
-}
-
-static long long fib_sequence_big_number(long long k, BigN *buf)
-{
-    BigN f[3];
-
-    f[0].lower = f[0].upper = 0;
-
-    f[1].lower = 1;
-    f[1].upper = 0;
-
-    for (int i = 2; i <= k; i++) {
-        addBigN(&f[i % 3], f[(i - 1) % 3], f[(i - 2) % 3]);
-    }
-    copy_to_user(buf, &f[k % 3], sizeof(BigN));
-
-    return k;
-}
-
-typedef struct _bn {
-    unsigned int *number;
-    unsigned int size;
-} BigN_arr;
-
-static long long fib_sequence_BigN_arr(long long k, BigN_arr *buf)
-{
-    return k;
-}
-
-typedef struct _str_num {
-    char *str;
-    int len;
-    int digits;
-} str_num;
-
-static void add_str_num(str_num *output, str_num x, str_num y)
-{
-    if (output->len < x.digits + 1) {
-        output->str = krealloc(output->str, output->len * 2, GFP_KERNEL);
-        output->len *= 2;
-    }
-
-    if (x.digits > y.digits)
-        y.str[y.digits] = 0;
-
-    int carry = 0, j;
-    for (j = 0; j < x.digits; j++) {
-        output->str[j] = x.str[j] + y.str[j] + carry;
-        carry = output->str[j] >= 10;
-        output->str[j] %= 10;
-    }
-    if (carry)
-        output->str[j++] = carry;
-
-    output->digits = j;
-}
-
-static long long fib_sequence_string_number(long long k, char *buf)
-{
-    str_num f[3];
-
-    for (int i = 0; i < 3; i++) {
-        f[i].str = kmalloc(128, GFP_KERNEL);
-        f[i].len = 128;
-        f[i].digits = 1;
-    }
-
-    f[0].str[0] = 0;
-    f[1].str[0] = 1;
-
-
-    for (int i = 2; i <= k; i++) {
-        add_str_num(&f[i % 3], f[(i - 1) % 3], f[(i - 2) % 3]);
-    }
-    str_num *ans = &f[k % 3];
-
-    for (int i = 0; i < ans->digits; i++)
-        ans->str[i] += '0';
-
-    reverse_str(ans->str, ans->digits);
-
-    copy_to_user(buf, ans->str, ans->digits + 1);
-
-    for (int i = 0; i < 3; i++)
-        kfree(f[i].str);
-
-    return k;
-}
-
-static long long fib_sequence_sso(long long k, char *buf)
-{
-    SSO f[3];
-    sso_init(&f[0], 0);
-    sso_init(&f[1], 1);
-    sso_init(&f[2], 0);
-
-    for (int i = 2; i <= k; i++) {
-        sso_add(&f[i % 3], &f[(i - 1) % 3], &f[(i - 2) % 3]);
-    }
-
-
-    SSO *ans = &f[k % 3];
-    char *data;
-    int size, cap;
-
-    get_sso_content(ans, &data, &size, &cap);
-
-    for (int i = 0; i < size; i++)
-        data[i] += '0';
-
-    reverse_str(data, size);
-
-    copy_to_user(buf, data, size);
-
-    for (int i = 0; i < 3; i++)
-        sso_free(&f[i]);
-
-    return k;
-}
-static long fib_time_proxy(long long k, char *buf)
+static long fib_time_proxy(long long k, char *buf, size_t size)
 {
     kt = ktime_get();
     // long result = fib_sequence_128_bit(k, (__uint128_t *) buf);
     // long result = fib_sequence_big_number(k, (BigN *)buf);
     // long result = fib_sequence_string_number(k, buf);
-    long result = fib_sequence_sso(k, buf);
+    // long result = fib_sequence_sso(k, buf, size);
+    long result = fib_sequence_bn(k, buf, size);
     kt = ktime_sub(ktime_get(), kt);
 
     return result;
@@ -207,7 +66,7 @@ static ssize_t fib_read(struct file *file,
                         size_t size,
                         loff_t *offset)
 {
-    return (ssize_t) fib_time_proxy(*offset, buf);
+    return (ssize_t) fib_time_proxy(*offset, buf, size);
 }
 
 static ssize_t fib_write(struct file *file,
