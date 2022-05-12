@@ -28,7 +28,7 @@ void reverse_str(char *str, size_t n)
 #endif
 void add_str_num(str_num *output, str_num x, str_num y)
 {
-    if (output->len < x.digits + 1) {
+    if (output->len < x.digits + 2) {
         output->str = krealloc(output->str, output->len * 2, GFP_KERNEL);
         output->len *= 2;
     }

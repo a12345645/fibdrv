@@ -13,6 +13,13 @@
 #define max(a, b) ((a > b) ? a : b)
 #define min(a, b) ((a < b) ? a : b)
 
+#ifndef _unsign_
+#define _unsign_
+#define ulong unsigned long
+#define uint unsigned int
+#define uint8_t unsigned char
+#endif
+
 typedef struct _bign {
     uint *num;
     size_t size;
@@ -36,7 +43,16 @@ int bn_resize(bign *bn, size_t size)
 {
     if (bn == NULL || bn->size > size)
         return 0;
-    bn->num = (uint *) krealloc(bn->num, size * 4, GFP_KERNEL);
+
+    uint *tmp = bn->num;
+    bn->num = (uint *) kcalloc(bn->num, size, sizeof(uint), GFP_KERNEL);
+
+    if (tmp != NULL) {
+        for (int i = 0; i < bn->len; i++)
+            bn->num[i] = tmp[i];
+        kfree(tmp);
+    }
+
     if (bn->num == NULL)
         return 0;
     bn->size = size;
@@ -85,6 +101,31 @@ int bn_add(bign *out, const bign *bn1, const bign *bn2)
     return 1;
 }
 
+void bn_set(bign *bn, uint n)
+{
+    if (bn->size == 0)
+        return;
+    for (int i = 1; i < bn->size; i++)
+        bn->num[i] = 0;
+    bn->num[0] = n;
+    bn->len = 1;
+}
+
+int bn_mult(bign *out, bign *x, bign *y)
+{
+    bn_set(out, 0);
+
+    for (int i = 0; i < x->len; i++) {
+        for (int j = 0; j < y->len; j++) {
+            ulong tmp = (ulong) x->num[i] * y->num[y];
+            uint t = tmp c = tmp >> 32;
+
+            out->num[]
+        }
+    }
+    return 1;
+}
+
 #ifndef _reverse_str_
 #define _reverse_str_
 void reverse_str(char *str, size_t n)
@@ -127,7 +168,7 @@ static long long fib_sequence_bn(long long k, char *buf, size_t buf_len)
     bign f[3];
     memset(f, 0, sizeof(bign) * 3);
 
-    int ret, d = k / 40 + 1;
+    int ret, d = k / 38 + 1;
     char tmp[(k / 4) + 2];
     memset(tmp, 0, (k / 4) + 2);
 

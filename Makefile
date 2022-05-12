@@ -33,7 +33,9 @@ client: client.c
 	$(CC) -o $@ $^
 
 gnuplot:
-	gnuplot gnuplot_srcipt.gp out
+	make client
+	sudo taskset 0x1 ./client > out_nn
+	gnuplot gnuplot_srcipt.gp
 
 PRINTF = env printf
 PASS_COLOR = \e[32;01m

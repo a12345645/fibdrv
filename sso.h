@@ -10,9 +10,12 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
+#ifndef _unsign_
+#define _unsign_
 #define ulong unsigned long
 #define uint unsigned int
 #define uint8_t unsigned char
+#endif
 
 #define SSO_CAP sizeof(SSO)
 #define MSB 0x80000000

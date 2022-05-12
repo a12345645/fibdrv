@@ -33,24 +33,26 @@ static DEFINE_MUTEX(fib_mutex);
 
 static ktime_t kt;
 
-// static long long fib_sequence(long long k)
-// {
-//     /* FIXME: C99 variable-length array (VLA) is not allowed in Linux kernel.
-//     */ long long f[k + 2];
+static long long fib_sequence(long long k)
+{
+    /* FIXME: C99 variable-length array (VLA) is not allowed in Linux kernel.
+     */
+    long long f[k + 2];
 
-//     f[0] = 0;
-//     f[1] = 1;
+    f[0] = 0;
+    f[1] = 1;
 
-//     for (int i = 2; i <= k; i++) {
-//         f[i] = f[i - 1] + f[i - 2];
-//     }
+    for (int i = 2; i <= k; i++) {
+        f[i] = f[i - 1] + f[i - 2];
+    }
 
-//     return f[k];
-// }
+    return f[k];
+}
 
 static long fib_time_proxy(long long k, char *buf, size_t size)
 {
     kt = ktime_get();
+    // long result = fib_sequence(k);
     // long result = fib_sequence_128_bit(k, (__uint128_t *) buf);
     // long result = fib_sequence_big_number(k, (BigN *)buf);
     // long result = fib_sequence_string_number(k, buf);

@@ -7,6 +7,59 @@
 
 #define FIB_DEV "/dev/fibonacci"
 
+
+
+int main()
+{
+    long long sz;
+
+    char write_buf[4096], read_buf[40960];
+    int start = 0,
+        offset = 1000; /* TODO: try test something bigger than the limit */
+
+    int fd = open(FIB_DEV, O_RDWR);
+    if (fd < 0) {
+        perror("Failed to open character device");
+        exit(1);
+    }
+
+    // for (int i = start; i <= offset; i++) {
+    //     sz = write(fd, write_buf, strlen(write_buf));
+    //     // printf("Writing to " FIB_DEV ", returned the sequence %lld\n",
+    //     sz);
+    // }
+
+    for (int i = start; i <= offset; i++) {
+        memset(read_buf, 0, sizeof(read_buf));
+
+        lseek(fd, i, SEEK_SET);
+        sz = read(fd, read_buf, sizeof(read_buf));
+
+        // __uint128_t *t = (__uint128_t *) read_buf;
+        // int ret = uint128_to_string(*t, buf, sizeof(buf));
+
+        // BigN *bign = (BigN *)read_buf;
+        // int ret = bn_to_string(bign, buf, sizeof(buf));
+
+        // printf("%d %s\n", i, buf);
+
+        // printf("%d %s\n", i, read_buf);
+
+        // printf("Reading from " FIB_DEV
+        //        " at offset %d, returned the sequence "
+        //        "%llu.\n",
+        //        i, sz);
+
+        sz = write(fd, write_buf, strlen(write_buf));
+        printf("%d %lld\n", i, sz);
+        usleep(10);
+    }
+
+    close(fd);
+    return 0;
+}
+
+/*
 void reverse_str(char *str, size_t n)
 {
     for (int i = 0; i < (n >> 1); i++) {
@@ -92,53 +145,4 @@ typedef struct _str_num {
     int len;
     int digits;
 } str_num;
-
-int main()
-{
-    long long sz;
-
-    char write_buf[4096], read_buf[40960];
-    int start = 50000,
-        offset = 50005; /* TODO: try test something bigger than the limit */
-
-    int fd = open(FIB_DEV, O_RDWR);
-    if (fd < 0) {
-        perror("Failed to open character device");
-        exit(1);
-    }
-
-    // for (int i = start; i <= offset; i++) {
-    //     sz = write(fd, write_buf, strlen(write_buf));
-    //     // printf("Writing to " FIB_DEV ", returned the sequence %lld\n",
-    //     sz);
-    // }
-
-    for (int i = start; i <= offset; i++) {
-        memset(read_buf, 0, sizeof(read_buf));
-
-        lseek(fd, i, SEEK_SET);
-        sz = read(fd, read_buf, sizeof(read_buf));
-
-        // __uint128_t *t = (__uint128_t *) read_buf;
-        // int ret = uint128_to_string(*t, buf, sizeof(buf));
-
-        // BigN *bign = (BigN *)read_buf;
-        // int ret = bn_to_string(bign, buf, sizeof(buf));
-
-        // printf("%d %s\n", i, buf);
-
-        printf("%d %s\n", i, read_buf);
-
-        // printf("Reading from " FIB_DEV
-        //        " at offset %d, returned the sequence "
-        //        "%llu.\n",
-        //        i, sz);
-
-        // sz = write(fd, write_buf, strlen(write_buf));
-        // printf("%d %lld\n", i, sz);
-        usleep(10);
-    }
-
-    close(fd);
-    return 0;
-}
+*/
