@@ -57,7 +57,8 @@ static long fib_time_proxy(long long k, char *buf, size_t size)
     // long result = fib_sequence_big_number(k, (BigN *)buf);
     // long result = fib_sequence_string_number(k, buf);
     // long result = fib_sequence_sso(k, buf, size);
-    long result = fib_sequence_bn(k, buf, size);
+    // long result = fib_sequence_bn(k, buf, size);
+    long result = fib_sequence_bn_fast(k, buf, size);
     kt = ktime_sub(ktime_get(), kt);
 
     return result;

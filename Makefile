@@ -34,7 +34,7 @@ client: client.c
 
 gnuplot:
 	make client
-	sudo taskset 0x1 ./client > out_nn
+	sudo taskset 0x1 ./client > out_cc
 	gnuplot gnuplot_srcipt.gp
 
 PRINTF = env printf
